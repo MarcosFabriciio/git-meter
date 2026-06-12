@@ -13,9 +13,11 @@ import AppKit
     }
 
     func requestAuthorizationIfNeeded() {
-        UNUserNotificationCenter.current().getNotificationSettings { settings in
+        Task {
+            let center = UNUserNotificationCenter.current()
+            let settings = await center.notificationSettings()
             guard settings.authorizationStatus == .notDetermined else { return }
-            UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
+            _ = try? await center.requestAuthorization(options: [.alert, .sound])
         }
     }
 
@@ -88,7 +90,7 @@ import AppKit
     ) {
         if let urlString = response.notification.request.content.userInfo["url"] as? String,
            let url = URL(string: urlString) {
-            NSWorkspace.shared.open(url)
+            Task { @MainActor in NSWorkspace.shared.open(url) }
         }
         completionHandler()
     }
