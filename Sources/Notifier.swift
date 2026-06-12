@@ -13,11 +13,10 @@ import AppKit
     }
 
     func requestAuthorizationIfNeeded() {
-        Task {
-            let center = UNUserNotificationCenter.current()
-            let settings = await center.notificationSettings()
+        let center = UNUserNotificationCenter.current()
+        center.getNotificationSettings { @Sendable settings in
             guard settings.authorizationStatus == .notDetermined else { return }
-            _ = try? await center.requestAuthorization(options: [.alert, .sound])
+            center.requestAuthorization(options: [.alert, .sound]) { @Sendable _, _ in }
         }
     }
 
