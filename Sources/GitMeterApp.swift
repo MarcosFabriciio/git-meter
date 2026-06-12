@@ -72,14 +72,12 @@ struct GitMeterApp: App {
             Image(systemName: "exclamationmark.triangle")
         } else if badge > 0 {
             HStack(spacing: 4) {
-                Image(systemName: "arrow.triangle.pull")
-                    .font(.system(size: 13, weight: .semibold))
+                Image(nsImage: pullRequestTemplateImage(size: 18))
                 Text("\(badge)")
                     .bold()
             }
         } else {
-            Image(systemName: "arrow.triangle.pull")
-                .font(.system(size: 13, weight: .semibold))
+            Image(nsImage: pullRequestTemplateImage(size: 18))
         }
     }
 }
