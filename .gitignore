@@ -4,3 +4,4 @@ Support/Info.plist
 .DS_Store
 _tap-staging/
 dist/
+_local/
