@@ -55,6 +55,10 @@ struct PopoverView: View {
                 .frame(width: 0, height: 0)
                 .accessibilityHidden(true)
 
+            if !store.repoErrors.isEmpty {
+                errorBanner
+            }
+
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     viewerHeader
@@ -63,7 +67,7 @@ struct PopoverView: View {
                     commentedSection
                     mineSection
                     codeRabbitAggregates
-                    if allSectionsEmpty {
+                    if allSectionsEmpty && store.repoErrors.isEmpty {
                         Text("Nenhuma PR sua ou aguardando você")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -80,6 +84,58 @@ struct PopoverView: View {
         .frame(width: 380)
     }
 
+    // MARK: - Error banner
+
+    /// Prominent banner shown above the scroll view when any repo has an error.
+    /// Auth/token errors include an actionable "Abrir Ajustes" button.
+    private var errorBanner: some View {
+        let distinctMessages = Array(Set(store.repoErrors.values)).sorted()
+        let isAuthError = distinctMessages.contains {
+            $0.localizedCaseInsensitiveContains("token")
+                || $0.localizedCaseInsensitiveContains("autenticação")
+        }
+
+        return VStack(alignment: .leading, spacing: 6) {
+            ForEach(distinctMessages, id: \.self) { message in
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                        .font(.caption)
+                        .padding(.top, 1)
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            if isAuthError {
+                HStack(spacing: 8) {
+                    Text("Configure um token do GitHub nos Ajustes")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Abrir Ajustes") {
+                        openSettings()
+                        NSApp.activate(ignoringOtherApps: true)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.mini)
+                    .tint(.orange)
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.orange.opacity(0.12))
+                .padding(.horizontal, 8)
+        )
+        .padding(.horizontal, 0)
+        .padding(.top, 6)
+        .padding(.bottom, 2)
+    }
+
     // MARK: - Height estimate
     //
     // Row layout after Part 0 padding bump:
@@ -91,6 +147,9 @@ struct PopoverView: View {
     // Section header: caption + vertical pads (top 10 + bottom 4) = ~28; using 30.
     // Mine chips row: caption2 capsules ~20 + bottom-pad 4 = 24; using 26.
     // Collapsed section: header only (30), rows/chips skipped.
+    //
+    // Error banner: icon + message line ~20, optional hint+button line ~24; top/bottom pads 8+6+2 = 16.
+    // Single message, no button: ~36. Single message + auth button: ~60. Use 60 for worst case.
 
     private var estimatedScrollHeight: CGFloat {
         let s = store.summary
@@ -139,8 +198,13 @@ struct PopoverView: View {
             h += CGFloat(crStats.count) * 22
         }
 
-        // All-empty placeholder
-        if allSectionsEmpty { h += 60 }
+        // All-empty placeholder (only shown when no errors)
+        if allSectionsEmpty && store.repoErrors.isEmpty { h += 60 }
+
+        // Subtract banner height from scroll view when it's shown above it.
+        // Banner lives outside ScrollView so the scroll frame must shrink by ~56 to avoid
+        // pushing the footer out of the rigid popover bounds.
+        if !store.repoErrors.isEmpty { h = max(h - 56, 60) }
 
         return h + 12                           // safety pad
     }

@@ -52,12 +52,13 @@ Notificações podem ser **retroativas** (até 48h): o app preserva um snapshot 
 ### Via Homebrew (recomendado)
 
 ```bash
-brew install --cask --no-quarantine MarcosFabriciio/tap/gitmeter
+brew install --cask MarcosFabriciio/tap/gitmeter
 ```
 
-**Por que `--no-quarantine`?**
+A cask remove automaticamente a restrição do Gatekeeper durante a instalação, então você não precisa de flags. GitMeter é assinado com assinatura ad-hoc (não notarizado pela Apple) — se o macOS ainda bloquear na primeira abertura, use um dos fallbacks:
 
-GitMeter é assinado com assinatura ad-hoc (não notarizado pela Apple). O macOS por padrão bloqueia apps com esse tipo de assinatura via Gatekeeper. O flag `--no-quarantine` remove essa restrição. Alternativa: `xattr -dr com.apple.quarantine /Applications/GitMeter.app` após instalar sem o flag.
+- **Terminal**: `xattr -dr com.apple.quarantine /Applications/GitMeter.app`
+- **GUI**: Abra **Privacidade e Segurança** nas Preferências do Sistema e clique "Abrir mesmo assim"
 
 ### Do código-fonte
 

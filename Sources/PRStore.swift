@@ -321,7 +321,7 @@ private nonisolated func ptBRMessage(for error: Error) -> String {
     case .rateLimited:    return "Limite de requisições atingido"
     case .network:        return "Sem conexão"
     case .graphQL:        return "Erro na API do GitHub"
-    case .noToken:        return "gh não encontrado — configure um PAT"
+    case .noToken:        return "Sem token do GitHub — configure em Ajustes"
     case .badResponse:    return "Erro na API do GitHub"
     }
 }
