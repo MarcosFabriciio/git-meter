@@ -188,17 +188,18 @@ private struct TokenTab: View {
     let tokenProvider: DefaultTokenProvider
     let store: PRStore
 
-    @State private var sourceDescription = ""
+    @State private var status: TokenStatus? = nil
     @State private var patInput = ""
 
     private var hasPAT: Bool {
-        sourceDescription.contains("PAT")
+        if case .pat = status { return true }
+        return false
     }
 
     var body: some View {
         Form {
             Section {
-                LabeledContent("Origem atual:", value: sourceDescription)
+                statusRow
             }
 
             Section {
@@ -210,7 +211,7 @@ private struct TokenTab: View {
                             await tokenProvider.setPAT(patInput)
                             await tokenProvider.invalidate()
                             patInput = ""
-                            sourceDescription = await tokenProvider.sourceDescription()
+                            status = await tokenProvider.tokenStatus()
                             store.refreshNow()
                         }
                     }
@@ -220,7 +221,7 @@ private struct TokenTab: View {
                         Task {
                             await tokenProvider.clearPAT()
                             await tokenProvider.invalidate()
-                            sourceDescription = await tokenProvider.sourceDescription()
+                            status = await tokenProvider.tokenStatus()
                             store.refreshNow()
                         }
                     }
@@ -236,7 +237,54 @@ private struct TokenTab: View {
         }
         .formStyle(.grouped)
         .task {
-            sourceDescription = await tokenProvider.sourceDescription()
+            status = await tokenProvider.tokenStatus()
+        }
+    }
+
+    @ViewBuilder
+    private var statusRow: some View {
+        if let s = status {
+            switch s {
+            case .pat:
+                Label {
+                    Text("PAT do Keychain")
+                        .foregroundStyle(.primary)
+                } icon: {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                }
+
+            case .ghAuthenticated(let path):
+                VStack(alignment: .leading, spacing: 2) {
+                    Label {
+                        Text("gh CLI autenticado")
+                            .foregroundStyle(.primary)
+                    } icon: {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    }
+                    Text(path)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+            case .none:
+                VStack(alignment: .leading, spacing: 4) {
+                    Label {
+                        Text("Sem token do GitHub")
+                            .foregroundStyle(.red)
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.red)
+                    }
+                    Text("Instale o gh (brew install gh && gh auth login) ou defina um PAT abaixo.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } else {
+            Text("Verificando…")
+                .foregroundStyle(.secondary)
         }
     }
 }

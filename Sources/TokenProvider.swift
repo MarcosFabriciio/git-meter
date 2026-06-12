@@ -65,6 +65,18 @@ private nonisolated func ghBinaryPath() -> String? {
     return nil
 }
 
+// MARK: - TokenStatus
+
+/// The actual token source as verified at runtime.
+enum TokenStatus: Sendable {
+    /// A Personal Access Token is stored in the Keychain.
+    case pat
+    /// gh CLI resolved and returned a token; path is the binary that was used.
+    case ghAuthenticated(String)
+    /// No token is available from any source.
+    case none
+}
+
 // MARK: - DefaultTokenProvider
 
 /// Resolves tokens in order: Keychain PAT → gh CLI.
@@ -95,12 +107,17 @@ actor DefaultTokenProvider: TokenProviding {
         cachedToken = nil
     }
 
-    /// Human-readable description of the active token source.
-    /// Reads the cached state — does not trigger a new resolution.
-    func sourceDescription() -> String {
-        if Keychain.exists() { return "PAT do Keychain" }
-        if let path = ghBinaryPath() { return "gh CLI (\(path))" }
-        return "gh CLI (/usr/bin/env gh)"
+    /// Honest async check of the actual token source.
+    /// Attempts real resolution — never returns an optimistic guess.
+    func tokenStatus() async -> TokenStatus {
+        if Keychain.exists() { return .pat }
+        do {
+            let t = try await tokenFromGHCLI()
+            guard !t.isEmpty else { return .none }
+            return .ghAuthenticated(ghBinaryPath() ?? "gh")
+        } catch {
+            return .none
+        }
     }
 
     // MARK: Private
@@ -121,8 +138,11 @@ actor DefaultTokenProvider: TokenProviding {
                 process.executableURL = URL(fileURLWithPath: ghPath)
                 process.arguments = ["auth", "token"]
             } else {
+                // GUI apps inherit a minimal PATH that excludes Homebrew.
+                // Augment it so /usr/bin/env can find a Homebrew-installed gh.
                 process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
                 process.arguments = ["gh", "auth", "token"]
+                process.environment = ["PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"]
             }
 
             // terminationHandler MUST be set before run().
