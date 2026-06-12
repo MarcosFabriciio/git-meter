@@ -73,11 +73,13 @@ struct GitMeterApp: App {
         } else if badge > 0 {
             HStack(spacing: 4) {
                 Image(systemName: "arrow.triangle.pull")
+                    .font(.system(size: 13, weight: .semibold))
                 Text("\(badge)")
                     .bold()
             }
         } else {
             Image(systemName: "arrow.triangle.pull")
+                .font(.system(size: 13, weight: .semibold))
         }
     }
 }

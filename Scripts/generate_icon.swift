@@ -14,22 +14,28 @@ import Foundation
 let canvasSize = 1024
 let rectSize: CGFloat = 824
 let cornerRadius: CGFloat = 185
-let bgColor = NSColor(red: 0x1F / 255.0, green: 0x21 / 255.0, blue: 0x25 / 255.0, alpha: 1.0)
-let tintColor = NSColor(red: 0x3F / 255.0, green: 0xB9 / 255.0, blue: 0x50 / 255.0, alpha: 1.0)
+
+// Metal gradient: top charcoal → bottom near-black (vertical, top = lighter)
+let bgTopColor    = NSColor(red: 0x34 / 255.0, green: 0x37 / 255.0, blue: 0x3B / 255.0, alpha: 1.0)
+let bgBottomColor = NSColor(red: 0x16 / 255.0, green: 0x17 / 255.0, blue: 0x19 / 255.0, alpha: 1.0)
+
+// Glyph gradient: light green top → deep GitHub green bottom
+let glyphTopColor    = NSColor(red: 0xA5 / 255.0, green: 0xF0 / 255.0, blue: 0xB0 / 255.0, alpha: 1.0)
+let glyphBottomColor = NSColor(red: 0x2E / 255.0, green: 0xA0 / 255.0, blue: 0x43 / 255.0, alpha: 1.0)
+
 let symbolName = "arrow.triangle.pull"
 let symbolPointSize: CGFloat = 440
 
 // Output path relative to the script's working directory (repo root).
-// When run via `swift Scripts/generate_icon.swift` from the repo root, FileManager.default.currentDirectoryPath is the repo root.
 let outputDir = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
     .appendingPathComponent("Assets.xcassets/AppIcon.appiconset")
 
 // MARK: - Size table
 
 struct IconSize {
-    let pixels: Int       // actual pixel dimension of the PNG
-    let pointSize: Int    // logical point size
-    let scale: Int        // @1x / @2x
+    let pixels: Int
+    let pointSize: Int
+    let scale: Int
     let filename: String
 }
 
@@ -46,24 +52,13 @@ let sizes: [IconSize] = [
     IconSize(pixels: 1024, pointSize: 512, scale: 2, filename: "icon_512x512@2x.png"),
 ]
 
-// MARK: - Render
+// MARK: - Helpers
 
-/// Renders the 1024×1024 master icon into an NSBitmapImageRep.
-/// The approach:
-///   1. Draw the dark rounded-rect background.
-///   2. Obtain the SF Symbol NSImage (system symbol, template mode).
-///   3. Draw it into a temporary offscreen context so we can extract pixel data.
-///   4. Composite a solid green fill over the symbol using .sourceAtop so only
-///      pixels that belong to the symbol glyph receive the tint — this avoids
-///      NSImage template-tinting quirks that can produce incorrect colors in
-///      certain OS versions.
-func renderMasterIcon() -> NSBitmapImageRep {
-    let size = CGFloat(canvasSize)
-
-    let rep = NSBitmapImageRep(
+func makeBitmapRep(width: Int, height: Int) -> NSBitmapImageRep {
+    NSBitmapImageRep(
         bitmapDataPlanes: nil,
-        pixelsWide: canvasSize,
-        pixelsHigh: canvasSize,
+        pixelsWide: width,
+        pixelsHigh: height,
         bitsPerSample: 8,
         samplesPerPixel: 4,
         hasAlpha: true,
@@ -72,23 +67,111 @@ func renderMasterIcon() -> NSBitmapImageRep {
         bytesPerRow: 0,
         bitsPerPixel: 0
     )!
+}
+
+/// Extracts the alpha channel of `source` as a 1-channel CGImage mask
+/// suitable for use with CGContext.clip(to:mask:).
+///
+/// CGImage mask convention: 0 = let through (opaque), 255 = block (transparent).
+/// This is the photographic negative of intuition, so we invert: glyph alpha 255
+/// becomes 0 (let through), transparent alpha 0 becomes 255 (block).
+func alphaOnlyMaskImage(from source: NSBitmapImageRep, width: Int, height: Int) -> CGImage {
+    let bytesPerRow = width
+    var alphaData = [UInt8](repeating: 0, count: width * height)
+
+    guard let srcData = source.bitmapData else {
+        fputs("ERROR: could not access bitmap data\n", stderr)
+        exit(1)
+    }
+    let srcBytesPerRow = source.bytesPerRow
+    let samplesPerPixel = source.samplesPerPixel
+
+    for y in 0 ..< height {
+        for x in 0 ..< width {
+            let srcOffset = y * srcBytesPerRow + x * samplesPerPixel
+            let alpha = srcData[srcOffset + 3]
+            // Invert: opaque glyph pixel → 0 (let through); transparent → 255 (block)
+            alphaData[y * bytesPerRow + x] = 255 - alpha
+        }
+    }
+
+    let dataProvider = CGDataProvider(
+        data: NSData(bytes: &alphaData, length: alphaData.count)
+    )!
+
+    return CGImage(
+        maskWidth: width,
+        height: height,
+        bitsPerComponent: 8,
+        bitsPerPixel: 8,
+        bytesPerRow: bytesPerRow,
+        provider: dataProvider,
+        decode: nil,
+        shouldInterpolate: true
+    )!
+}
+
+// MARK: - Render
+
+/// Renders the 1024×1024 master icon into an NSBitmapImageRep.
+///
+/// Pipeline:
+///   1. Draw the squircle with a vertical dark metal CGGradient.
+///   2. Faint inner highlight along the top edge.
+///   3. Render the SF Symbol into a full RGBA bitmap (black glyph, clear bg).
+///   4. Extract the alpha channel as an 8-bit grayscale CGImage mask.
+///   5. Clip the master context to the glyph mask using clip(to:mask:).
+///   6. Draw the green gradient — it lands only on glyph-covered pixels.
+///   7. Reset clip.
+func renderMasterIcon() -> NSBitmapImageRep {
+    let size = CGFloat(canvasSize)
+    let colorSpace = CGColorSpaceCreateDeviceRGB()
+
+    let rep = makeBitmapRep(width: canvasSize, height: canvasSize)
 
     NSGraphicsContext.saveGraphicsState()
     let ctx = NSGraphicsContext(bitmapImageRep: rep)!
     NSGraphicsContext.current = ctx
+    let cgCtx = ctx.cgContext
 
-    // Clear to transparent
-    NSColor.clear.setFill()
-    NSRect(x: 0, y: 0, width: size, height: size).fill()
+    cgCtx.clear(CGRect(x: 0, y: 0, width: size, height: size))
 
-    // Draw dark rounded-rect background
+    // ── 1. Metal gradient squircle ──────────────────────────────────────────
     let offset = (size - rectSize) / 2
     let bgRect = CGRect(x: offset, y: offset, width: rectSize, height: rectSize)
-    let path = NSBezierPath(roundedRect: bgRect, xRadius: cornerRadius, yRadius: cornerRadius)
-    bgColor.setFill()
-    path.fill()
+    let squirclePath = CGPath(
+        roundedRect: bgRect,
+        cornerWidth: cornerRadius,
+        cornerHeight: cornerRadius,
+        transform: nil
+    )
 
-    // Obtain SF Symbol at full size
+    cgCtx.saveGState()
+    cgCtx.addPath(squirclePath)
+    cgCtx.clip()
+
+    let bgGradient = CGGradient(
+        colorsSpace: colorSpace,
+        colors: [bgTopColor.cgColor, bgBottomColor.cgColor] as CFArray,
+        locations: [0.0, 1.0]
+    )!
+    // CG y-up: maxY = visual top, minY = visual bottom
+    cgCtx.drawLinearGradient(
+        bgGradient,
+        start: CGPoint(x: bgRect.midX, y: bgRect.maxY),
+        end:   CGPoint(x: bgRect.midX, y: bgRect.minY),
+        options: []
+    )
+
+    // ── 2. 1px inner top highlight ──────────────────────────────────────────
+    cgCtx.setStrokeColor(CGColor(red: 1.0, green: 1.0, blue: 1.0, alpha: 0.08))
+    cgCtx.setLineWidth(2.0)
+    cgCtx.addPath(squirclePath)
+    cgCtx.strokePath()
+
+    cgCtx.restoreGState()
+
+    // ── 3. Render SF Symbol into RGBA bitmap ────────────────────────────────
     let config = NSImage.SymbolConfiguration(pointSize: symbolPointSize, weight: .semibold)
     guard let rawSymbol = NSImage(systemSymbolName: symbolName, accessibilityDescription: nil)?
             .withSymbolConfiguration(config) else {
@@ -96,59 +179,50 @@ func renderMasterIcon() -> NSBitmapImageRep {
         exit(1)
     }
 
-    // Render symbol into its own bitmap so we can tint with .sourceAtop
-    let symW = rawSymbol.size.width
-    let symH = rawSymbol.size.height
+    let symW = Int(rawSymbol.size.width)
+    let symH = Int(rawSymbol.size.height)
 
-    guard let symRep = NSBitmapImageRep(
-        bitmapDataPlanes: nil,
-        pixelsWide: Int(symW),
-        pixelsHigh: Int(symH),
-        bitsPerSample: 8,
-        samplesPerPixel: 4,
-        hasAlpha: true,
-        isPlanar: false,
-        colorSpaceName: .deviceRGB,
-        bytesPerRow: 0,
-        bitsPerPixel: 0
-    ) else {
-        fputs("ERROR: could not create symbol bitmap rep\n", stderr)
-        exit(1)
-    }
-
-    let symCtx = NSGraphicsContext(bitmapImageRep: symRep)!
-    NSGraphicsContext.current = symCtx
-    symCtx.cgContext.clear(CGRect(x: 0, y: 0, width: symW, height: symH))
-
-    // Draw the symbol as a template (black mask) so .sourceAtop tinting works
-    rawSymbol.isTemplate = true
+    let maskRep = makeBitmapRep(width: symW, height: symH)
+    let maskNSCtx = NSGraphicsContext(bitmapImageRep: maskRep)!
+    NSGraphicsContext.current = maskNSCtx
+    maskNSCtx.cgContext.clear(CGRect(x: 0, y: 0, width: CGFloat(symW), height: CGFloat(symH)))
+    // Draw WITHOUT isTemplate so the alpha channel carries correct opaque/transparent data.
+    // Template mode produces all-transparent output in RGBA context.
     rawSymbol.draw(
-        in: CGRect(x: 0, y: 0, width: symW, height: symH),
+        in: CGRect(x: 0, y: 0, width: CGFloat(symW), height: CGFloat(symH)),
         from: .zero,
         operation: .sourceOver,
         fraction: 1.0
     )
 
-    // Flood the tint color over the symbol alpha mask
-    tintColor.setFill()
-    symCtx.cgContext.setBlendMode(.sourceAtop)
-    CGRect(x: 0, y: 0, width: symW, height: symH).fill()
+    // ── 4. Extract alpha channel as a CGImage mask ──────────────────────────
+    let alphaMask = alphaOnlyMaskImage(from: maskRep, width: symW, height: symH)
 
-    // Build a tinted NSImage from the rep
-    let tintedSymbol = NSImage(size: NSSize(width: symW, height: symH))
-    tintedSymbol.addRepresentation(symRep)
-
-    // Switch back to the master context and center-draw the tinted symbol
+    // ── 5+6. Clip to glyph alpha, draw green gradient ───────────────────────
     NSGraphicsContext.current = ctx
 
-    let symDestX = (size - symW) / 2
-    let symDestY = (size - symH) / 2
-    tintedSymbol.draw(
-        in: CGRect(x: symDestX, y: symDestY, width: symW, height: symH),
-        from: .zero,
-        operation: .sourceOver,
-        fraction: 1.0
+    let symDestX = (size - CGFloat(symW)) / 2
+    let symDestY = (size - CGFloat(symH)) / 2
+    let symDestRect = CGRect(x: symDestX, y: symDestY, width: CGFloat(symW), height: CGFloat(symH))
+
+    cgCtx.saveGState()
+    // clip(to:mask:) uses the mask image as an alpha clip — white = opaque, black = clipped.
+    cgCtx.clip(to: symDestRect, mask: alphaMask)
+
+    let glyphGradient = CGGradient(
+        colorsSpace: colorSpace,
+        colors: [glyphTopColor.cgColor, glyphBottomColor.cgColor] as CFArray,
+        locations: [0.0, 1.0]
+    )!
+    // CG y-up: maxY = visual top, minY = visual bottom
+    cgCtx.drawLinearGradient(
+        glyphGradient,
+        start: CGPoint(x: symDestRect.midX, y: symDestRect.maxY),
+        end:   CGPoint(x: symDestRect.midX, y: symDestRect.minY),
+        options: []
     )
+
+    cgCtx.restoreGState()
 
     NSGraphicsContext.restoreGraphicsState()
     return rep
@@ -160,18 +234,7 @@ func scale(rep: NSBitmapImageRep, to pixelSize: Int) -> NSBitmapImageRep {
     let srcImage = NSImage(size: rep.size)
     srcImage.addRepresentation(rep)
 
-    let scaled = NSBitmapImageRep(
-        bitmapDataPlanes: nil,
-        pixelsWide: pixelSize,
-        pixelsHigh: pixelSize,
-        bitsPerSample: 8,
-        samplesPerPixel: 4,
-        hasAlpha: true,
-        isPlanar: false,
-        colorSpaceName: .deviceRGB,
-        bytesPerRow: 0,
-        bitsPerPixel: 0
-    )!
+    let scaled = makeBitmapRep(width: pixelSize, height: pixelSize)
 
     NSGraphicsContext.saveGraphicsState()
     let ctx = NSGraphicsContext(bitmapImageRep: scaled)!
@@ -199,8 +262,6 @@ func contentsJSON(sizes: [IconSize]) -> String {
             "size": "\(s.pointSize)x\(s.pointSize)"
         ])
     }
-    // Simple hand-rolled JSON to avoid Foundation JSONEncoder dependency on
-    // older Swift toolchains and keep the output deterministic.
     var lines = ["{", "  \"images\" : ["]
     for (i, img) in images.enumerated() {
         let comma = i < images.count - 1 ? "," : ""
