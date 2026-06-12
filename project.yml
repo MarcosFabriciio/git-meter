@@ -27,10 +27,12 @@ targets:
         LSUIElement: true
         CFBundleDisplayName: GitMeter
         LSApplicationCategoryType: public.app-category.developer-tools
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.marcosfabriciio.GitMeter
-        MARKETING_VERSION: "0.1.1"
+        MARKETING_VERSION: "0.1.2"
         CURRENT_PROJECT_VERSION: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
