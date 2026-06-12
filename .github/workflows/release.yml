@@ -1,0 +1,152 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false  # let an in-flight release finish; cancel would orphan a partial GitHub Release
+
+permissions:
+  contents: write  # required: create GitHub Releases and upload assets
+
+jobs:
+  build-release:
+    name: Build and release
+    runs-on: macos-15
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Run tests
+        run: make test
+
+      - name: Build dist artifacts
+        run: make dist
+        # Produces:
+        #   dist/GitMeter-<version>.zip
+        #   dist/GitMeter-<version>.zip.sha256
+
+      - name: Resolve artifact paths
+        id: artifacts
+        run: |
+          ZIP=$(ls dist/GitMeter-*.zip | grep -v '\.sha256$' | head -1)
+          SHA=$(ls dist/GitMeter-*.zip.sha256 | head -1)
+          echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          # Also expose the raw sha256 hex for the job summary
+          SHA256=$(awk '{print $1}' "$SHA")
+          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "GitMeter ${{ github.ref_name }}" \
+            --generate-notes \
+            "${{ steps.artifacts.outputs.zip }}" \
+            "${{ steps.artifacts.outputs.sha }}"
+
+      - name: Write sha256 to job summary
+        run: |
+          echo "## Release artifacts" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Tag: \`${{ github.ref_name }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**sha256 (for Homebrew cask):**" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "${{ steps.artifacts.outputs.sha256 }}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  update-tap:
+    name: Update Homebrew tap
+    runs-on: macos-15
+    timeout-minutes: 10
+    needs: build-release
+
+    # GitHub does not allow secrets in job-level `if` — the env indirection
+    # below is the canonical workaround: expose the secret as an env var first,
+    # then gate each step on env.TAP_TOKEN.
+    env:
+      TAP_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+
+    steps:
+      - name: Skip when no token
+        if: env.TAP_TOKEN == ''
+        run: echo "TAP_GITHUB_TOKEN ausente — pulando atualização do tap"
+
+      - name: Clone tap repo
+        if: env.TAP_TOKEN != ''
+        run: |
+          git clone \
+            "https://x-access-token:${TAP_TOKEN}@github.com/MarcosFabriciio/homebrew-tap.git" \
+            tap
+
+      - name: Download release zip
+        if: env.TAP_TOKEN != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd tap
+          gh release download "${{ github.ref_name }}" \
+            --repo "MarcosFabriciio/git-meter" \
+            -p "*.zip" \
+            --dir /tmp/gitmeter-release
+
+      - name: Compute sha256 and update cask
+        if: env.TAP_TOKEN != ''
+        run: |
+          # Strip the leading 'v' from the tag to get the plain version string
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+
+          ZIP_FILE=$(ls /tmp/gitmeter-release/GitMeter-*.zip | grep -v '\.sha256$' | head -1)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "ERROR: no zip found in /tmp/gitmeter-release — download step failed"
+            exit 1
+          fi
+
+          SHA256=$(shasum -a 256 "$ZIP_FILE" | awk '{print $1}')
+
+          CASK="tap/Casks/gitmeter.rb"
+          if [ ! -f "$CASK" ]; then
+            echo "ERROR: $CASK does not exist in the tap — create it before setting TAP_GITHUB_TOKEN"
+            exit 1
+          fi
+
+          # Replace version and sha256 lines in-place
+          sed -i '' "s/version \"[^\"]*\"/version \"${VERSION}\"/" "$CASK"
+          sed -i '' "s/sha256 \"[^\"]*\"/sha256 \"${SHA256}\"/" "$CASK"
+
+          echo "Updated $CASK to version=${VERSION} sha256=${SHA256}"
+
+      - name: Commit and push tap update
+        if: env.TAP_TOKEN != ''
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+
+          cd tap
+          git -c user.name='github-actions[bot]' \
+              -c user.email='github-actions[bot]@users.noreply.github.com' \
+              add Casks/gitmeter.rb
+
+          # Skip commit if nothing changed (idempotent re-run safety)
+          if git diff --cached --quiet; then
+            echo "No changes to commit — cask already up to date"
+            exit 0
+          fi
+
+          git -c user.name='github-actions[bot]' \
+              -c user.email='github-actions[bot]@users.noreply.github.com' \
+              commit -m "gitmeter ${VERSION}"
+
+          git push
