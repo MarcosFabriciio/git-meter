@@ -1,0 +1,77 @@
+name: GitMeter
+options:
+  bundleIdPrefix: com.marcosfabriciio
+  deploymentTarget:
+    macOS: "14.0"
+  xcodeVersion: "15"
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+    SWIFT_APPROACHABLE_CONCURRENCY: YES
+    CODE_SIGN_STYLE: Automatic
+    CODE_SIGN_IDENTITY: "-"
+    ENABLE_HARDENED_RUNTIME: NO
+
+targets:
+  GitMeter:
+    type: application
+    platform: macOS
+    sources:
+      - Sources
+      - Assets.xcassets
+    info:
+      path: Support/Info.plist
+      properties:
+        LSUIElement: true
+        CFBundleDisplayName: GitMeter
+        LSApplicationCategoryType: public.app-category.developer-tools
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.marcosfabriciio.GitMeter
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+
+  GitMeterTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests
+        excludes:
+          - Fixtures/**
+      - path: Sources/Models.swift
+        excludes: []
+      - path: Sources/Derivation.swift
+        excludes: []
+      - path: Sources/GitHubClient.swift
+        excludes: []
+    resources:
+      - path: Tests/Fixtures
+        type: folder
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.marcosfabriciio.GitMeterTests
+        TEST_HOST: ""
+        BUNDLE_LOADER: ""
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  GitMeter:
+    build:
+      targets:
+        GitMeter:
+          - running
+          - testing
+          - profiling
+          - analyzing
+          - archiving
+        GitMeterTests:
+          - testing
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - GitMeterTests

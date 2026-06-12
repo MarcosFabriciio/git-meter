@@ -1,0 +1,366 @@
+{
+  "data": {
+    "viewer": { "login": "alice" },
+    "rateLimit": {
+      "cost": 2,
+      "remaining": 4850,
+      "resetAt": "2026-06-11T12:00:00Z"
+    },
+    "repository": {
+      "pullRequests": {
+        "totalCount": 7,
+        "nodes": [
+          {
+            "number": 101,
+            "title": "coderabbitai via latestReviews",
+            "url": "https://github.com/acme/example/pull/101",
+            "isDraft": false,
+            "updatedAt": "2026-06-11T08:00:00Z",
+            "headRefName": "feature/coderabbit-reviews",
+            "author": { "login": "bob" },
+            "reviewDecision": "REVIEW_REQUIRED",
+            "additions": 42,
+            "deletions": 7,
+            "mergeable": "MERGEABLE",
+            "reviewRequests": {
+              "totalCount": 1,
+              "nodes": [
+                {
+                  "requestedReviewer": {
+                    "__typename": "User",
+                    "login": "alice",
+                    "slug": null
+                  }
+                }
+              ]
+            },
+            "latestReviews": {
+              "nodes": [
+                { "author": { "login": "coderabbitai" }, "state": "COMMENTED" },
+                { "author": { "login": "carol" }, "state": "APPROVED" }
+              ]
+            },
+            "reviewThreads": {
+              "totalCount": 12,
+              "nodes": [
+                { "isResolved": true },
+                { "isResolved": true },
+                { "isResolved": true },
+                { "isResolved": true },
+                { "isResolved": true },
+                { "isResolved": true },
+                { "isResolved": true },
+                { "isResolved": true },
+                { "isResolved": false },
+                { "isResolved": false },
+                { "isResolved": false },
+                { "isResolved": false }
+              ]
+            },
+            "comments": {
+              "totalCount": 3,
+              "nodes": [
+                { "author": { "login": "bob" } },
+                { "author": { "login": "carol" } }
+              ]
+            },
+            "commits": {
+              "nodes": [
+                {
+                  "commit": {
+                    "statusCheckRollup": { "state": "SUCCESS" }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "number": 102,
+            "title": "coderabbitai via comments ONLY",
+            "url": "https://github.com/acme/example/pull/102",
+            "isDraft": false,
+            "updatedAt": "2026-06-11T07:00:00Z",
+            "headRefName": "fix/null-pointer",
+            "author": { "login": "bob" },
+            "reviewDecision": null,
+            "additions": 120,
+            "deletions": 55,
+            "mergeable": "CONFLICTING",
+            "reviewRequests": {
+              "totalCount": 0,
+              "nodes": []
+            },
+            "latestReviews": {
+              "nodes": [
+                { "author": { "login": "carol" }, "state": "CHANGES_REQUESTED" }
+              ]
+            },
+            "reviewThreads": {
+              "totalCount": 3,
+              "nodes": [
+                { "isResolved": false },
+                { "isResolved": false },
+                { "isResolved": true }
+              ]
+            },
+            "comments": {
+              "totalCount": 5,
+              "nodes": [
+                { "author": { "login": "coderabbitai" } },
+                { "author": { "login": "bob" } }
+              ]
+            },
+            "commits": {
+              "nodes": [
+                {
+                  "commit": {
+                    "statusCheckRollup": { "state": "FAILURE" }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "number": 103,
+            "title": "no coderabbit at all; team + user requests; capped threads",
+            "url": "https://github.com/acme/example/pull/103",
+            "isDraft": false,
+            "updatedAt": "2026-06-10T20:00:00Z",
+            "headRefName": "chore/big-refactor",
+            "author": { "login": "carol" },
+            "reviewDecision": "CHANGES_REQUESTED",
+            "additions": 300,
+            "deletions": 180,
+            "mergeable": "UNKNOWN",
+            "reviewRequests": {
+              "totalCount": 2,
+              "nodes": [
+                {
+                  "requestedReviewer": {
+                    "__typename": "Team",
+                    "login": null,
+                    "slug": "backend-team"
+                  }
+                },
+                {
+                  "requestedReviewer": {
+                    "__typename": "User",
+                    "login": "alice",
+                    "slug": null
+                  }
+                }
+              ]
+            },
+            "latestReviews": {
+              "nodes": [
+                { "author": { "login": "bob" }, "state": "APPROVED" }
+              ]
+            },
+            "reviewThreads": {
+              "totalCount": 120,
+              "nodes": [
+                { "isResolved": false },
+                { "isResolved": true },
+                { "isResolved": false },
+                { "isResolved": true }
+              ]
+            },
+            "comments": {
+              "totalCount": 2,
+              "nodes": [
+                { "author": { "login": "carol" } }
+              ]
+            },
+            "commits": {
+              "nodes": [
+                {
+                  "commit": {
+                    "statusCheckRollup": { "state": "ERROR" }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "number": 104,
+            "title": "unknown __typename tolerated (Mannequin); reviewDecision null; author null → ghost",
+            "url": "https://github.com/acme/example/pull/104",
+            "isDraft": false,
+            "updatedAt": "2026-06-10T15:00:00Z",
+            "headRefName": null,
+            "author": null,
+            "reviewDecision": null,
+            "additions": 0,
+            "deletions": 0,
+            "mergeable": "FUTURE_UNKNOWN_VALUE",
+            "reviewRequests": {
+              "totalCount": 2,
+              "nodes": [
+                {
+                  "requestedReviewer": {
+                    "__typename": "Mannequin",
+                    "login": "mannequin-user",
+                    "slug": null
+                  }
+                },
+                {
+                  "requestedReviewer": null
+                }
+              ]
+            },
+            "latestReviews": {
+              "nodes": [
+                { "author": null, "state": "COMMENTED" },
+                { "author": { "login": "alice" }, "state": "UNKNOWNSTATE" }
+              ]
+            },
+            "reviewThreads": {
+              "totalCount": 0,
+              "nodes": []
+            },
+            "comments": {
+              "totalCount": 1,
+              "nodes": [
+                { "author": null }
+              ]
+            },
+            "commits": {
+              "nodes": []
+            }
+          },
+          {
+            "number": 105,
+            "title": "alice own PR awaiting review",
+            "url": "https://github.com/acme/example/pull/105",
+            "isDraft": false,
+            "updatedAt": "2026-06-09T10:00:00Z",
+            "headRefName": "feat/new-endpoint",
+            "author": { "login": "alice" },
+            "reviewDecision": null,
+            "additions": 8,
+            "deletions": 2,
+            "mergeable": "MERGEABLE",
+            "reviewRequests": {
+              "totalCount": 1,
+              "nodes": [
+                {
+                  "requestedReviewer": {
+                    "__typename": "User",
+                    "login": "bob",
+                    "slug": null
+                  }
+                }
+              ]
+            },
+            "latestReviews": {
+              "nodes": []
+            },
+            "reviewThreads": {
+              "totalCount": 0,
+              "nodes": []
+            },
+            "comments": {
+              "totalCount": 0,
+              "nodes": []
+            },
+            "commits": {
+              "nodes": [
+                {
+                  "commit": {
+                    "statusCheckRollup": { "state": "PENDING" }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "number": 106,
+            "title": "reviewDecision APPROVED string maps correctly",
+            "url": "https://github.com/acme/example/pull/106",
+            "isDraft": true,
+            "updatedAt": "2026-06-08T09:00:00Z",
+            "headRefName": "draft/wip-feature",
+            "author": { "login": "bob" },
+            "reviewDecision": "APPROVED",
+            "additions": 0,
+            "deletions": 0,
+            "mergeable": "MERGEABLE",
+            "reviewRequests": {
+              "totalCount": 0,
+              "nodes": []
+            },
+            "latestReviews": {
+              "nodes": [
+                { "author": { "login": "alice" }, "state": "APPROVED" }
+              ]
+            },
+            "reviewThreads": {
+              "totalCount": 2,
+              "nodes": [
+                { "isResolved": true },
+                { "isResolved": true }
+              ]
+            },
+            "comments": {
+              "totalCount": 0,
+              "nodes": []
+            },
+            "commits": {
+              "nodes": [
+                {
+                  "commit": {
+                    "statusCheckRollup": null
+                  }
+                }
+              ]
+            }
+          }
+          ,
+          {
+            "number": 107,
+            "title": "alice commented only — no headRefName in payload",
+            "url": "https://github.com/acme/example/pull/107",
+            "isDraft": false,
+            "updatedAt": "2026-06-07T18:00:00Z",
+            "author": { "login": "carol" },
+            "reviewDecision": null,
+            "additions": 10,
+            "deletions": 3,
+            "mergeable": "MERGEABLE",
+            "reviewRequests": {
+              "totalCount": 0,
+              "nodes": []
+            },
+            "latestReviews": {
+              "nodes": [
+                { "author": { "login": "alice" }, "state": "COMMENTED" }
+              ]
+            },
+            "reviewThreads": {
+              "totalCount": 1,
+              "nodes": [
+                { "isResolved": false }
+              ]
+            },
+            "comments": {
+              "totalCount": 2,
+              "nodes": [
+                { "author": { "login": "alice" } },
+                { "author": { "login": "carol" } }
+              ]
+            },
+            "commits": {
+              "nodes": [
+                {
+                  "commit": {
+                    "statusCheckRollup": { "state": "SUCCESS" }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  }
+}
